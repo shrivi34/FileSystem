@@ -1,0 +1,79 @@
+Certainly! Here is a complete example that demonstrates how to use the JoinedFileSystem:
+import java.io.IOException;
+import java.nio.file.FileStore;
+import java.nio.file.FileSystem;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.WatchService;
+import java.nio.file.attribute.UserPrincipalLookupService;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public class JoinedFileSystem extends FileSystem {
+
+    private final FileSystemProvider provider;
+    private final List<JoinedFileStore> fileStores;
+    private final UserPrincipalLookupService lookupService;
+    private final Map<String, Path> joins;
+    private final Map<String, Boolean> joinPermissions;
+    public JoinedFileSystem(FileSystemProvider provider, UserPrincipalLookupService lookupService, Map<String, Path> joins, Map<String, Boolean> joinPermissions) {
+    this.provider = provider;
+    this.fileStores = new ArrayList<>();
+    this.lookupService = lookupService;
+    this.joins = joins;
+    this.joinPermissions = joinPermissions;
+
+    // Add a file store for each join
+    for (Map.Entry<String, Path> entry : joins.entrySet()) {
+        String name = entry.getKey();
+        Path path = entry.getValue();
+        boolean writable = joinPermissions.get(name);
+        fileStores.add(new JoinedFileStore(name, path, writable));
+    }
+}
+
+@Override
+public FileSystemProvider provider() {
+    return provider;
+}
+
+@Override
+public void close() throws IOException {
+    // Do nothing
+}
+
+@Override
+public boolean isOpen() {
+    return true;
+}
+
+@Override
+public boolean isReadOnly() {
+    return false;
+}
+
+@Override
+public String getSeparator() {
+    return "/";
+}
+
+@Override
+public Iterable<Path> getRootDirectories() {
+    // Return a list of root directories for each join
+    List<Path> roots = new ArrayList<>();
+    for (Map.Entry<String, Path> entry : joins.entrySet()) {
+        String name = entry.getKey();
+        Path path = entry.getValue();
+        roots.add(new JoinedPath(this, "/" + name));
+    }
+    return roots;
+}
+
+@Override
+public Iterable<FileStore> getFileStores() {
+    return fileStores;
+}
+
